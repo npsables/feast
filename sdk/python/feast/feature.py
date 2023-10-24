@@ -19,6 +19,8 @@ from feast.protos.feast.types.Value_pb2 import ValueType as ValueTypeProto
 from feast.value_type import ValueType
 
 
+
+
 class Feature:
     """
     A Feature represents a class of serveable feature.
