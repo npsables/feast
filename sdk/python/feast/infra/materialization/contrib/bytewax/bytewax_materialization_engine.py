@@ -27,7 +27,7 @@ from feast.infra.online_stores.online_store import OnlineStore
 from feast.infra.registry.base_registry import BaseRegistry
 from feast.repo_config import FeastConfigBaseModel
 from feast.stream_feature_view import StreamFeatureView
-from feast.utils import _get_column_names, get_default_yaml_file_path
+from feast.utils import _get_column_names
 
 from .bytewax_materialization_job import BytewaxMaterializationJob
 
@@ -111,7 +111,6 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
         self.offline_store = offline_store
         self.online_store = online_store
 
-        # TODO: Configure k8s here
         k8s_config.load_config()
 
         self.k8s_client = client.api_client.ApiClient()
@@ -299,6 +298,9 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
                 len(paths),  # Create a pod for each parquet file
                 self.batch_engine_config.env,
             )
+            logger.info(
+                f"Created job `dataflow-{job_id}` on namespace `{self.namespace}`"
+            )
         except FailToCreateError as failures:
             return BytewaxMaterializationJob(job_id, self.namespace, error=failures)
 
@@ -307,10 +309,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
     def _create_configuration_map(self, job_id, paths, feature_view, namespace):
         """Create a Kubernetes configmap for this job"""
 
-        repo_path = self.repo_config.repo_path
-        assert repo_path
-        feature_store_path = get_default_yaml_file_path(repo_path)
-        feature_store_configuration = feature_store_path.read_text()
+        feature_store_configuration = yaml.dump(self.repo_config.dict())
 
         materialization_config = yaml.dump(
             {"paths": paths, "feature_view": feature_view.name}
@@ -361,7 +360,7 @@ class BytewaxMaterializationEngine(BatchMaterializationEngine):
             },
             {
                 "name": "BYTEWAX_REPLICAS",
-                "value": f"{pods}",
+                "value": "1",
             },
             {
                 "name": "BYTEWAX_KEEP_CONTAINER_ALIVE",
